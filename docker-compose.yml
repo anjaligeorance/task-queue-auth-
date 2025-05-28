@@ -1,0 +1,48 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+  app:
+    build: .
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOST: redis
+
+
+
+  mongo:
+    image: mongo
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mongo:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  # worker:
+  #   build: .
+  #   command: celery -A app.worker worker --loglevel=info
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
